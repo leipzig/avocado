@@ -1,0 +1,897 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Avocado by cbmi</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Avocado</h1>
+        <p class="header">Metadata APIs for Django</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/cbmi/avocado/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/cbmi/avocado/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/cbmi/avocado">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/cbmi">cbmi</a></p>
+
+
+      </header>
+      <section>
+        <h2>Contents</h2>
+
+<ul>
+<li><a href="#target-audience">Target Audience</a></li>
+<li><a href="#background">Background</a></li>
+<li><a href="#install">Install</a></li>
+<li><a href="#configure">Configure</a></li>
+<li>
+<a href="#getting-started">Getting Started</a>
+
+<ul>
+<li><a href="#bootstrap-the-metadata">Bootstrap the Metadata</a></li>
+</ul>
+</li>
+<li>
+<a href="#datafield-api">DataField API</a>
+
+<ul>
+<li><a href="#descriptors">Descriptors</a></li>
+<li><a href="#properties">Properties</a></li>
+<li><a href="#aggregation">Aggregation</a></li>
+<li><a href="#translators">Translators</a></li>
+</ul>
+</li>
+<li>
+<a href="#dataconcept-api">DataConcept API</a>
+
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#query-views">Query Views</a></li>
+<li><a href="#formatters">Formatters</a></li>
+<li><a href="#exporters">Exporters</a></li>
+</ul>
+</li>
+<li>
+<a href="#datacontext-api">DataContext API</a>
+
+<ul>
+<li><a href="#condition-node">Condition Node</a></li>
+<li><a href="#branch-node">Branch Node</a></li>
+<li><a href="#composite-node">Composite Node</a></li>
+</ul>
+</li>
+<li><a href="#dataview-api">DataView API</a></li>
+<li><a href="#lexicon-abstract-class">Lexicon Abstract Class</a></li>
+<li>
+<a href="#management-commands">Management Commands</a>
+
+<ul>
+<li><a href="#sync">sync</a></li>
+<li><a href="#orphaned">orphaned</a></li>
+</ul>
+</li>
+<li><a href="#settings">Settings</a></li>
+<li><a href="#optional-app-integration">Optional App Integration</a></li>
+<li><a href="#examples">Examples</a></li>
+<li><a href="#notes">Notes</a></li>
+</ul><h2>Target Audience</h2>
+
+<p><strong>Developers who are interested in letting their data do the work for them.</strong></p>
+
+<p>Some experience with Django is necessary, run through the <a href="https://docs.djangoproject.com/en/1.4/topics/db/models/">model docs</a> (and possibly the <a href="https://docs.djangoproject.com/en/1.4/intro/tutorial01/">tutorial</a>) if you are unfamiliar with Django. Some general Python experience is necessary.</p>
+
+<h2>Background</h2>
+
+<p>Django models provides the <strong>structural</strong> metadata necessary for interfacing with the supported database backends. However, in general, there is no formal mechanism to supply <strong>descriptive</strong> or <strong>administrative</strong> metadata about your data model. Avocado is a Django app which provides metadata management for your models.</p>
+
+<p>Avocado grew out of projects being developed in a clinical research environment where data models can often be large and complex. Additionally, there are frequently data fields that contain related, but decoupled data which typically results in a large hierarchical data model.</p>
+
+<p>When developing applications that make use of such data, developers need to be able to provide end-users with appropriate context and representation of the data elements to avoid confusion and errors of omission.</p>
+
+<h3>A Real Example</h3>
+
+<p>All this abstract talk can be a bit confusing, so here is an example. In medicine, it's typical that results from a diagnostic test like a blood test might be broken into several columns in a relational database: a numerical value, units of measure, and an assessment as to whether it is normal, high, or low. As a developer you'd like to be able to bundle these conveniently in your application.</p>
+
+<p>While you could just store them all as one text field in your database, that sacrifices the ability to query and perform mathematical calculations on the numerical field. On the other hand, splitting them apart means a user who does not know your data model very well needs to know upfront to hunt down the various elements on their own, or they risk getting an incomplete picture of the retrieved data.</p>
+
+<p>In many cases, these kinds of complexities result in a research workflow where the technical team act as "keepers of the data", and all the researcher's questions are filtered through them to be translated into queries. This situation, while good for the continued employment of engineers, is not ideal for open-ended discovery and hypothesis generation by researchers.</p>
+
+<h3>The Solution</h3>
+
+<p>Avocado was designed to support the development of accessible, transparent, and data-rich applications by providing several major capabilities:</p>
+
+<ul>
+<li>A formal means of storing additional metadata for your data model</li>
+<li>Robust API's for interrogating metadata for dynamic query generation which includes translation, validation, cleaning and execution of queries</li>
+<li>Built-in extensible components for the formatting and exporting of data</li>
+</ul><p>The power of Avocado's dynamic query generation lies in it's ability to <a href="#relationships-are-transparent">span relationships transparently</a>. This allows users (and to some extent developers) to focus on the data and not have to worry about the data model.</p>
+
+<h3>Target Applications</h3>
+
+<p>While Avocado can be useful for any project, it is likely to be most applicable to projects with a heavy focus on data, especially ones with query, reporting, and export requirements and/or with medium to large data models. As a developer, it can be very useful as a tool for <em>accessing</em> some data for the first time. For users, it is most intended for applications focused on domain-specific data discovery.</p>
+
+<h3>Types of Metadata</h3>
+
+<h4>Structural</h4>
+
+<p>Django's model field reference describes the options available for defining model fields. The field's subclass (e.g. <code>IntegerField</code>) and the various options passed (e.g. <code>null=True</code>) contain structural metadata which can be used to understand a field's constraints.</p>
+
+<p>A simple example of how this is useful is to look at how Django's field validation works. If one attempts to save an integer field with a string value, a <code>ValidationError</code> will be thrown complaining about the type. This prevents a downstream database type error.</p>
+
+<p>These constraints facilitate better representation of data fields by providing more context to users. This utlimately reduces the number of assumptions and guesswork required to understand what operations can be performed on the data.</p>
+
+<h4>Descriptive</h4>
+
+<p>For any medium to large size data model, describing and managing each field can be a painstaking task. Fields and data available to end-users for query and representation purposes should be informative. This requires high-quality, descriptive metadata.</p>
+
+<p>Django provides two field options <a href="https://docs.djangoproject.com/en/1.4/ref/models/options/#verbose-name"><code>verbose_name</code></a> and <a href="https://docs.djangoproject.com/en/1.4/ref/models/options/#help-text"><code>help_text</code></a> that are descriptive metadata, but are hard-coded in the field definition. This is a limitation if the metadata is managed by another party (client or domain expert) since this must be defined in the code itself.</p>
+
+<p>Avocado provides numerous descriptive fields that enables better defined data fields.</p>
+
+<h4>Administrative</h4>
+
+<p>For applications which integrate multiple data sources, it can be useful to keep track of the various source information such as the data's organization, a Uniform Resource Identifier (URI), and access permissions.</p>
+
+<p>Avocado has support for Django's built-in <a href="https://docs.djangoproject.com/en/1.4/ref/contrib/sites/">sites</a> and <a href="https://docs.djangoproject.com/en/1.4/topics/auth/#permissions">auth</a> apps enabling course grain (per-site/deployment) and fine grain (per-user) permissions on viewing and modifying data fields.</p>
+
+<hr><h2>Prerequisites</h2>
+
+<p>As of now, Python 2.7 is required. Want older versions supported? Fork the repo and submit a pull request.</p>
+
+<p>To install Avocado and it's dependencies, it is assumed you have the latest versions of <a href="http://pypi.python.org/pypi/distribute">distribute</a> (or <a href="http://pypi.python.org/pypi/setuptools">setuptools</a>) and <a href="http://pypi.python.org/pypi/pip">Pip</a> installed.</p>
+
+<h2>Install</h2>
+
+<pre><code>pip install avocado
+</code></pre>
+
+<p>The <em>hard</em> dependencies which will auto-install are <a href="https://www.djangoproject.com">Django 1.4+</a>, <a href="http://pypi.python.org/pypi/modeltree">modeltree 1.0+</a> and <a href="https://github.com/bradjasper/django-jsonfield/">django-jsonfield 0.9+</a>.</p>
+
+<h2>Optional Dependencies</h2>
+
+<p>For a bare-bones Avocado installation the following dependencies may be skipped, but peruse through to understand the purpose of each one listed.</p>
+
+<p><em>Have a suggestion for additional metadata integration? <a href="https://github.com/cbmi/avocado/issues/new">File an issue</a> on Avocado's GitHub repo.</em></p>
+
+<h4><a href="https://docs.djangoproject.com/en/1.4/ref/contrib/sites/">Django "sites" Framework</a></h4>
+
+<p>Having this installed enables associating <code>DataField</code>s and/or <code>DataConcept</code>s to specific sites, or more specifically, deployments. For example, an internal and external deployment may exist for the same application, but only the internal deployment provides access to certain <em>restricted</em> fields for operational use.</p>
+
+<p>Install by adding <code>django.contrib.sites</code> to <code>INSTALLED_APPS</code>.</p>
+
+<h4><a href="http://packages.python.org/django-guardian/">django-guardian</a></h4>
+
+<p>This enables fine-grain control over who has permissions for various <code>DataField</code>s. Permissions can be defined at a user or <em>group</em> level.</p>
+
+<p>Install by doing <code>pip install django-guardian</code> and adding <code>guardian</code> to <code>INSTALLED_APPS</code>.</p>
+
+<h4><a href="http://haystacksearch.org">django-haystack</a></h4>
+
+<p>What's having all this great descriptive data if no one can find it? Haystack provides search engine facilities for the metadata.</p>
+
+<p>Install by doing <code>pip install django-haystack</code> and installing one of the supported search engine backends. The easiest to setup is <a href="http://pypi.python.org/pypi/Whoosh">Whoosh</a> which is implemented in pure Python. Install it by doing <code>pip install whoosh</code>. Add <code>haystack</code> to <code>INSTALLED_APPS</code>.</p>
+
+<h4><a href="http://www.scipy.org">SciPy</a></h4>
+
+<p>Avocado comes with a <code>stats</code> package for performing some rudimentary statistical, aggregation and clustering operations on the data. This is not always required or necessary for all data, but if there is a heavy emphasis on numerical data or the amount of data is quite large, the <code>stats</code> may come in handy.</p>
+
+<p>Install by doing <code>pip install numpy</code> first (a dependency of SciPy), followed by <code>pip install scipy</code>. Note, there are a few dependencies for compilation, so review <a href="http://www.scipy.org/Installing_SciPy">SciPy's installation instructions</a> for more details.</p>
+
+<h4><a href="http://packages.python.org/openpyxl/">openpyxl</a></h4>
+
+<p>Avocado comes with an <code>export</code> package for supporting various means of exporting data into different formats. One of those formats is the native Microsoft Excel <em>.xlsx</em> format. To support that, the openpyxl library is used.</p>
+
+<p>Install by doing <code>pip install openpyxl</code>.</p>
+
+<h2>Configure</h2>
+
+<p>At a minimum, your <code>INSTALLED_APPS</code> should contain the following apps:</p>
+
+<div class="highlight"><pre><span class="n">INSTALLED_APPS</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">'django.contrib.admin'</span><span class="p">,</span>
+    <span class="s">'django.contrib.auth'</span><span class="p">,</span>
+    <span class="s">'django.contrib.contenttypes'</span><span class="p">,</span>
+    <span class="s">'django.contrib.messages'</span><span class="p">,</span>
+    <span class="s">'django.contrib.sessions'</span><span class="p">,</span>
+    <span class="s">'django.contrib.sites'</span><span class="p">,</span>
+
+    <span class="s">'avocado'</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">)</span>
+</pre></div>
+
+<hr><h2>Getting Started</h2>
+
+<p>To introduce the API gradually and coherently, we are going to start with two example models, <code>Author</code> and <code>Book</code> in an app named <code>library</code>.</p>
+
+<div class="highlight"><pre><span class="c"># library/models.py</span>
+<span class="k">class</span> <span class="nc">Author</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Book</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">author</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Author</span><span class="p">)</span>
+    <span class="n">pub_date</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateField</span><span class="p">(</span><span class="s">'publication date'</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+
+<h3>Bootstrap the Metadata</h3>
+
+<p>To reiterate the introduction above, Avocado is about putting in place ways to define and make use of metadata surrounding your data model.</p>
+
+<p>Avocado comes with a <code>sync</code> subcommand which introspects Django models and creates <code>DataField</code> instances representing the model fields. At least one app label (<code>library</code>) or model label (<code>library.book</code>) must be specified.</p>
+
+<p>By default, <code>DataField</code> instances are not created for primary and foreign key fields. In practice, surrogate key fields are used infrequently as is, thus they are not created by default. To override this behavior and include key fields, add the flag <code>--include-keys</code>.</p>
+
+<p>Likewise, model fields may be marked as not being editable in the model field definitions. This flag is turned on typically for operational or bookkeeping fields such as timestamps. By default, <code>DataField</code>s are not created for these either, but can overridden by passing the <code>--include-non-editable</code>.</p>
+
+<div class="highlight"><pre>./manage.py avocado sync library
+1 field added <span class="k">for </span>Author
+2 fields added <span class="k">for </span>Book
+</pre></div>
+
+<p>On a side note, the <code>avocado</code> command acts as a parent for various subcommands. Simply type <code>./manage.py avocado</code> to show a list of available subcommands.</p>
+
+<h3>DataField API</h3>
+
+<p>An Avocado <code>DataField</code> instance represents a single Django model field instance. These three attributes uniquely identify a model field.</p>
+
+<ul>
+<li>
+<code>f.field_name</code> - The name of the field on the model</li>
+<li>
+<code>f.model_name</code> - The name of the model this field is defined for</li>
+<li>
+<code>f.app_name</code> - The name of the app this field's model is defined in</li>
+</ul><div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span> <span class="nn">avocado.models</span> <span class="kn">import</span> <span class="n">DataField</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span> <span class="o">=</span> <span class="n">DataField</span><span class="p">(</span><span class="n">field_name</span><span class="o">=</span><span class="s">'title'</span><span class="p">,</span> <span class="n">model_name</span><span class="o">=</span><span class="s">'book'</span><span class="p">,</span> <span class="n">app_name</span><span class="o">=</span><span class="s">'library'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span>
+<span class="o">&lt;</span><span class="n">DataField</span> <span class="s">'library.book.title'</span><span class="o">&gt;</span>
+</pre></div>
+
+<p>These three attributes enable referencing to the actual field instance and model class:</p>
+
+<ul>
+<li>
+<code>f.field</code> - The model DataField instance this field represents</li>
+<li>
+<code>f.model</code> - The model class this field is associated with</li>
+</ul><div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">field</span>
+<span class="o">&lt;</span><span class="n">django</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">CharField</span> <span class="n">at</span> <span class="mh">0x101b5fe10</span><span class="o">&gt;</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">model</span>
+<span class="o">&lt;</span><span class="k">class</span> <span class="err">'</span><span class="nc">library</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Book</span><span class="s">'&gt;</span>
+</pre></div>
+
+<h4>Descriptors</h4>
+
+<p>Additional metadata can be defined for this object to make it more useful to humans. Define various <em>descriptors</em> to enhance the meaning of a data field.</p>
+
+<ul>
+<li>
+<code>f.name</code> - A verbose human readable name of the field</li>
+<li>
+<code>f.name_plural</code> - The plural form of the verbose name. If not defined, an <em>s</em> will be appended to <code>f.name</code> when the plural form is accessed.</li>
+<li>
+<code>f.description</code> - A long description for the field</li>
+<li>
+<code>f.keywords</code> - Other related keywords (this is primarily applicable for search indexing by <a href="#django-haystack">django-haystack</a>)</li>
+<li>
+<code>f.unit</code> - The unit of the data, for example <em>gram</em>
+</li>
+<li>
+<code>f.unit_plural</code> - The plural form of the unit, for example <em>grams</em>. If not defined, an <em>s</em> will be appended to <code>f.unit</code> when the plural form is accessed.</li>
+</ul><div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">'Price'</span>
+<span class="c"># f.name_plural can be set, but does not need to be since</span>
+<span class="c"># this is a simple plural form</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">get_plural_name</span><span class="p">()</span>
+<span class="s">'Prices'</span>
+<span class="c"># likewise with the f.unit_plural..</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="s">'dollar'</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">get_plural_unit</span><span class="p">()</span>
+<span class="s">'dollars'</span>
+</pre></div>
+
+<h4>Properties</h4>
+
+<p><code>DataField</code>s also acts as an interface and exposes various properties and methods for directly accessing the underlying data or properties about the data.</p>
+
+<h5>Editable</h5>
+
+<ul>
+<li>
+<code>f.enumerable</code> - A flag denoting if the field's data is composed of an enumerable set. During a <a href="avocado-sync">sync</a>, each field's data is evaluated based on the internal type and the size of the data (number of distinct values). By default, if the field is a <code>CharField</code> and has <code>SYNC_ENUMERABLE_MAXIMUM</code> or less distinct values, this will be set to <code>True</code>. </li>
+<li>
+<code>f.searchlable</code> - A flag denoting if the field's data should be treated as searchable text. This applies to <code>TextField</code>s and <code>CharField</code>s which don't meet the requirements for being <code>enumerable</code>.</li>
+</ul><h5>Read-only</h5>
+
+<ul>
+<li>
+<code>f.internal_type</code> - The low-level datatype of the field. This is really only used for mapping to the below <code>simple_type</code>. Read more about the <a href="#internal-vs-simple-types">internal vs. simple types</a>.</li>
+<li>
+<code>f.simple_type</code> - The high-level datatype of the field used for validation purposes and as general metadata for client applications. (These types can be overridden, <a href="SIMPLE_TYPE_MAP">read about</a> the <code>SIMPLE_TYPE_MAP</code> setting)</li>
+<li>
+<code>f.size</code> - Returns the number of <em>distinct</em> values for this field</li>
+<li>
+<code>f.values</code> - Returns a tuple of distinct raw values ordered by the field. If the corresponding model is a subclass of Avocado's <code>Lexicon</code> abstract model, the order corresponds to the <code>order</code> field on the <code>Lexicon</code> model subclass. Read more about the <a href="#lexicon-abstract-class"><code>Lexicon</code> abstract class</a>.</li>
+<li>
+<code>f.labels</code> - Returns a unicoded tuple of labels. If the corresponding model is a subclass of Avocado's <code>Lexicon</code> abstract model, this corresponds to the <code>label</code> field on the <code>Lexicon</code> model subclass. Read more about the <a href="#lexicon-abstract-class"><code>Lexicon</code> abstract class</a>.</li>
+<li>
+<code>f.choices</code> - A tuple of pairs zipped from <code>f.values</code> and <code>f.labels</code>. This is useful for populating form fields for client applications.</li>
+<li>
+<code>f.query()</code> - Returns a <code>ValuesQuerySet</code> for this field. This is equivalent to <code>f.model.objects.values(f.field_name)</code>.</li>
+</ul><div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">internal_type</span>
+<span class="s">'char'</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">simple_type</span>
+<span class="s">'string'</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">size</span>
+<span class="mi">33</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">values</span>
+<span class="p">(</span><span class="s">'A Christmas Carol'</span><span class="p">,</span> <span class="s">'A Tale of Two Cities'</span><span class="p">,</span> <span class="s">'The Adventures of Oliver Twist'</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">labels</span>
+<span class="p">(</span><span class="s">u'A Christmas Carol'</span><span class="p">,</span> <span class="s">u'A Tale of Two Cities'</span><span class="p">,</span> <span class="s">u'The Adventures of Oliver Twist'</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">choices</span>
+<span class="p">((</span><span class="s">'A Christmas Carol'</span><span class="p">,</span> <span class="s">u'A Christmas Carol'</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
+<span class="p">[{</span><span class="s">'title'</span><span class="p">:</span> <span class="s">'A Christmas Carol'</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+
+<h4>Aggregation</h4>
+
+<p>A simple, yet powerful set of methods are available for performing aggregations. Each method below returns an <code>Aggregator</code> object which enables chaining aggregations together as well as adding conditions to filter or exclude results.</p>
+
+<p>By default, aggregations are table-wide. Zero or more lookups can be supplied to perform the aggregation relative to the fields in the <code>GROUP BY</code>.</p>
+
+<ul>
+<li>
+<code>f.count([*groupby], distinct=False)</code> - Returns a count of all values for the field. If <code>distinct</code> is <code>True</code>, a <code>COUNT(DISTINCT foo)</code> will be performed.</li>
+<li>
+<code>f.max([*groupby])</code> - Returns the max value</li>
+<li>
+<code>f.min([*groupby])</code> - Returns the min value</li>
+<li>
+<code>f.avg([*groupby])</code> - Returns the average of all values</li>
+<li>
+<code>f.sum([*groupby])</code> - Returns the sum of all values</li>
+<li>
+<code>f.stddev([*groupby])</code> - Returns the standard deviation of all values. <em>This is not supported in SQLite by default.</em>
+</li>
+<li>
+<code>f.variance([*groupby])</code> - Returns the variance of all values. <em>This is not supported in SQLite by default.</em>
+</li>
+</ul><p>Table-wide aggregations:</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">price</span> <span class="o">=</span> <span class="n">DataField</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_by_natural_key</span><span class="p">(</span><span class="s">'library'</span><span class="p">,</span> <span class="s">'book'</span><span class="p">,</span> <span class="s">'price'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+<span class="mi">33</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+<span class="mf">132.00</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+<span class="mf">14.50</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span>
+<span class="mf">32.25</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="mf">1064.25</span>
+</pre></div>
+
+<p>Each aggregation method can take Avocado or standard QuerySet lookup strings to group by those fields.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s">'book__author'</span><span class="p">)</span>
+<span class="p">[{</span><span class="s">'author'</span><span class="p">:</span> <span class="s">'Charles Dickens'</span><span class="p">,</span> <span class="s">'count'</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">avg</span><span class="p">(</span><span class="s">'book__author'</span><span class="p">)</span>
+<span class="p">[{</span><span class="s">'author'</span><span class="p">:</span> <span class="s">'Charles Dickens'</span><span class="p">,</span> <span class="s">'avg'</span><span class="p">:</span> <span class="mf">50.45</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+
+<p>The methods are chainable, the only caveat is that the <code>*groupby</code> arguments must be the same across all the aggregation methods. To bypass this, use the <code>groupby()</code> method to affix the group by fields.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="p">{</span><span class="s">'count'</span><span class="p">:</span> <span class="mi">33</span><span class="p">,</span> <span class="s">'avg'</span><span class="p">:</span> <span class="mf">32.25</span><span class="p">,</span> <span class="s">'sum'</span><span class="p">:</span> <span class="mf">1064.25</span><span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'book__author'</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="p">[{</span><span class="s">'author'</span><span class="p">:</span> <span class="s">'Charles Dickens'</span><span class="p">,</span> <span class="s">'count'</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s">'avg'</span><span class="p">:</span> <span class="mf">50.45</span><span class="p">,</span> <span class="s">'sum'</span><span class="p">:</span> <span class="mf">201.80</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+
+<p>Additional methods are available for filtering, excluding and ordering the data. Each aggregation that is chained is named after the aggregation applied. As shown below, the count aggregation can be used in the subsequent <code>filter</code> and <code>order_by</code> methods.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">price</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s">'book__author'</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">count__gt</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="s">'count'</span><span class="p">)</span>
+</pre></div>
+
+<h3>Translators</h3>
+
+<p>Translators are used to modify query conditions prior to being executed. Depending on the quality or variability of your data, the query interface for a field may not represent the data 1:1 with the underlying data. Thus the incoming query condition may need to be translated in some way to work with the underlying database.</p>
+
+<p>These operator classes perform only light validation of the value to prevent being too restrictive.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span> <span class="nn">avocado.query.operators</span> <span class="kn">import</span> <span class="n">registry</span> <span class="k">as</span> <span class="n">operators</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">iexact</span> <span class="o">=</span> <span class="n">operators</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'iexact'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">iexact</span><span class="o">.</span><span class="n">is_valid</span><span class="p">([</span><span class="s">'hello'</span><span class="p">,</span> <span class="s">'world'</span><span class="p">])</span>
+<span class="bp">False</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">iexact</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="s">'hello world'</span><span class="p">)</span>
+<span class="bp">True</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">inlist</span> <span class="o">=</span> <span class="n">operators</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">'inlist'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">inlist</span><span class="o">.</span><span class="n">is_valid</span><span class="p">([</span><span class="s">'hello'</span><span class="p">,</span> <span class="s">'world'</span><span class="p">])</span>
+<span class="bp">True</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">inlist</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(</span><span class="s">'hello world'</span><span class="p">)</span>
+<span class="bp">False</span>
+</pre></div>
+
+<p>The base <code>Translator</code> class uses <a href="https://docs.djangoproject.com/en/1.4/ref/contrib/forms/api/">Django's Form API</a> to validate and clean the value relative to the underlying model field (e.g. <code>f.field</code>).</p>
+
+<p>The primary method to call is <code>translate</code> which calls <code>clean_value</code> and <code>clean_operator</code>.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">t</span> <span class="o">=</span> <span class="n">Translator</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">'icontains'</span><span class="p">,</span> <span class="s">'Python'</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="s">'condition'</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">django</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">query_utils</span><span class="o">.</span><span class="n">Q</span> <span class="n">at</span> <span class="mh">0x1027b78d0</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="s">'annotations'</span><span class="p">:</span> <span class="p">{},</span>
+    <span class="s">'cleaned_data'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s">'operator'</span><span class="p">:</span> <span class="s">'icontains'</span><span class="p">,</span>
+        <span class="s">'value'</span><span class="p">:</span> <span class="s">u'Python'</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s">'raw_data'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s">'operator'</span><span class="p">:</span> <span class="s">'icontains'</span><span class="p">,</span>
+        <span class="s">'value'</span><span class="p">:</span> <span class="s">'Python'</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>DataConcept API</h2>
+
+<h3>Introduction</h3>
+
+<p>As much as Avocado is a metadata management tool, a prime consumer of this metadata are humans. More specifically, the metadata can be used to provide more context and meaning to the data and the data model.</p>
+
+<p>The notion of a <code>DataConcept</code> came from the need to represent discrete data in a human-readable domain-specific way. Data is typically stored in a normalized, discrete and efficient way, thus rendering it a bit obscure in it's raw state. Sometimes a single <em>column</em> of data in database table is meaningless without another column, for example a column of <code>weight</code> without the column of <code>unit</code>.</p>
+
+<p>Of course, data must be stored in this discrete way to ensure the database can treat it properly and perform the correct operations on that data. Unfortunately, humans don't care about how data is stored, nor should they. <strong>They simply want the data to be accessible so they can consume it in a way that makes sense to them.</strong></p>
+
+<p>Concepts encapsulate one or more fields intended to be represented together in some way. This sounds very abstract and is intentionally so. This lightweight abstract encourages being creative in how fields are represented together.</p>
+
+<h3>Query Views</h3>
+
+<h4>Datatypes</h4>
+
+<p>Datatypes, in the context of Avocado, are used for representation of the data for querying, not for data entry. Differentiating between datatypes such as <code>int</code> vs. <code>float</code> are typically too specific for data discovery, thus these related native types are rolled up into a high-level datatype, such as <code>number</code>.</p>
+
+<ul>
+<li><code>string</code></li>
+<li><code>number</code></li>
+<li><code>date</code></li>
+<li><code>boolean</code></li>
+</ul><h3>Formatters</h3>
+
+<p>The most common utility of the DataConcept abstraction is formatting the fields' data in a usable format for the consumer. The consumer may be a human, a Web browser, an R interpreter or anything else. Regardless of the consume, formatters provide an API for taking in raw data and outputting a representation of that data.</p>
+
+<p>The most common utility of the <code>DataConcept</code> abstraction is formatting the fields' data in a usable format for the consumer. The consumer may be a human, a Web browser, an R interpreter or anything else. Regardless of the consume, formatters provide an API for taking in raw data and outputting a representation of that data.</p>
+
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">avocado.formatters</span> <span class="kn">import</span> <span class="n">Formatter</span>
+<span class="c"># Get the 'Dosage' concept which combines the 'dose'</span>
+<span class="c"># and 'unit' fields</span>
+<span class="n">dosage</span> <span class="o">=</span> <span class="n">DataConcept</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'Dosage'</span><span class="p">)</span>
+<span class="c"># Prepare a formatter for the dosage concept</span>
+<span class="n">formatter</span> <span class="o">=</span> <span class="n">Formatter</span><span class="p">(</span><span class="n">dosage</span><span class="p">)</span>
+<span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="mi">60</span><span class="p">,</span> <span class="s">'mg'</span><span class="p">,</span> <span class="s">'as needed'</span><span class="p">]</span>
+<span class="c"># Returns ['60', 'mg', 'as needed']</span>
+<span class="n">formatter</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">preferred_formats</span><span class="o">=</span><span class="p">[</span><span class="s">'string'</span><span class="p">])</span>
+</pre></div>
+
+<p>A formatter attempts to solve two problems. First, <strong>coerce the various values into the preferred format</strong> and secondly, perform an operation on each or all of the values. As shown above, the <code>formatter</code> instance is callable and takes a sequence of <code>values</code> and a <code>preferred_formats</code> argument. Since this is the base formatter class, aside from being good at coercing datatypes, it is not terribly useful.</p>
+
+<p>Formatters can be easily created by subclassing the base <code>Formatter</code> class and adding, overriding, or augmenting the methods. As stated above, a formatter can be applied each raw value or all values together. As an example of this, we can create a simple <code>ConcatFormatter</code>.</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">ConcatFormatter</span><span class="p">(</span><span class="n">Formatter</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">cfields</span><span class="p">,</span> <span class="o">**</span><span class="n">context</span><span class="p">):</span>
+        <span class="n">joined</span> <span class="o">=</span> <span class="s">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">super</span><span class="p">(</span><span class="n">ConcatFormatter</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+                <span class="n">values</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">({</span><span class="s">'output'</span><span class="p">:</span> <span class="n">joined</span><span class="p">})</span>
+
+    <span class="c"># Informs the class this method can process multiple values at a time</span>
+    <span class="n">to_string</span><span class="o">.</span><span class="n">process_multiple</span> <span class="o">=</span> <span class="bp">True</span>
+</pre></div>
+
+<h3>Exporters</h3>
+
+<hr><h2>DataContext API</h2>
+
+<p>Avocado defines a simple structure for representing query conditions. A query condition boils down to three components:</p>
+
+<ul>
+<li>the <code>datafield</code> to which the condition applies</li>
+<li>the <code>operator</code> which defines how the condition is being applied</li>
+<li>the <code>value</code> which defines which value(s) are affected by the condition</li>
+</ul><p>Just as in a SQL statement, applying conditions to query enables constraining the data to some subset. Conditions can of course be combined using conditional AND or OR operators (not the same operators mentioned above). These conditional <em>branches</em> join together two or more conditions or other branches resulting in a <em>tree</em> of conditions.</p>
+
+<pre><code>     AND
+    /   \
+  OR     A
+ /  \
+B    C
+</code></pre>
+
+<p>Using <code>datafield</code>s as the condition's reference point enables applying the tree of conditions to any query.</p>
+
+<p>The <code>DataContext</code> model provides a simple API for storing, persisting and applying the condition tree. In it's raw state, the condition tree is simply a combination of <em>condition</em> and <em>branch</em> nodes. Following this example, the schema of both node types are described.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span> <span class="nn">avocado.models</span> <span class="kn">import</span> <span class="n">DataContext</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">cxt</span> <span class="o">=</span> <span class="n">DataContext</span><span class="p">()</span>
+<span class="c"># This will be serialized (and validated) to JSON when saved</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">cxt</span><span class="o">.</span><span class="n">json</span> <span class="o">=</span> <span class="p">{</span><span class="s">'id'</span><span class="p">:</span> <span class="s">'library.book.price'</span><span class="p">,</span> <span class="s">'operator'</span><span class="p">:</span> <span class="s">'gt'</span><span class="p">,</span> <span class="s">'value'</span><span class="p">:</span> <span class="mf">10.00</span><span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">queryset</span> <span class="o">=</span> <span class="n">cxt</span><span class="o">.</span><span class="n">apply</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="k">print</span> <span class="nb">str</span><span class="p">(</span><span class="n">queryset</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+<span class="s">'SELECT "book"."id", "book"."title", "book"."author_id", "book"."price" FROM "book" WHERE "book"."price" &gt; 10.00 '</span>
+</pre></div>
+
+<h4>Condition Node</h4>
+
+<ul>
+<li>
+<code>id</code> - The value can be:
+
+<ul>
+<li>An <code>int</code> representing the primary key identifer for a <code>DataField</code> instance, e.g. <code>1</code>
+</li>
+<li>Period-delimited <code>string</code> representing a natural key for a <code>DataField</code> instance, e.g. <code>'app.model.field'</code>
+</li>
+<li>An <code>array</code> of strings representing a natural key for a <code>DataField</code> instance, e.g. <code>["app", "model", "field"]</code>
+</li>
+</ul>
+</li>
+<li>
+<code>operator</code> - A <code>string</code> representing a valid <code>DataField</code> operator. Valid operators vary depending on the implementation and are validated downstream. If not specified, the operator defaults to <code>exact</code>.</li>
+<li>
+<code>value</code> - Any valid JSON data type.</li>
+</ul><h4>Branch Node</h4>
+
+<ul>
+<li>
+<code>type</code> - A <code>string</code> that is <code>"and"</code> or <code>"or"</code> representing the type of branch or logical operation between child nodes defined in the <code>children</code> property.</li>
+<li>
+<code>children</code> - An <code>array</code> of <em>two</em> or more nodes.
+
+<ul>
+<li><em>See example [DataContext Condition Trees]</em></li>
+</ul>
+</li>
+</ul><hr><h2>DataView API</h2>
+
+<hr><h2>Lexicon Abstract Class</h2>
+
+<p>Avocado defines an abstract class named <code>Lexicon</code>. It is a common practice
+when normalizing a data model to <em>break out</em> repeated finite sets of terms
+within a column into their own table. This is quite obvious for entities such
+as <em>books</em> and <em>authors</em>, but less so for commonly used or enumerable
+terms.</p>
+
+<pre><code>id | name | birth_month
+---+------+------------
+ 1   Sue    May
+ 2   Joe    June
+ 3   Bo     Jan
+ 4   Jane   Apr
+...
+</code></pre>
+
+<p>The above shows a table with three columns <code>id</code>, <code>name</code> and <code>birth_month</code>.
+There are some inherent issues with <code>birth_month</code>:</p>
+
+<ol>
+<li>Months have an arbitrary order which makes it very difficult to order the
+rows by <code>birth_month</code> since they are ordered lexicographically</li>
+<li>As the table grows (think millions) the few bytes of disk space each
+repeated string takes up starts having a significant impact</li>
+<li>The cost of querying for the distinct months within the population gets
+increasingly more expensive as the table grows</li>
+<li>As the table grows, the cost of table scans increases since queries are
+acting on strings rather than an integer (via a foreign key)</li>
+</ol><p>Although the above example is somewhat contrived, the reasons behind this
+type of normalization are apparent.</p>
+
+<p>To implement, subclass and define the <code>value</code> and <code>label</code> fields.</p>
+
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">avocado.lexicon.models</span> <span class="kn">import</span> <span class="n">Lexicon</span>
+
+<span class="k">class</span> <span class="nc">Month</span><span class="p">(</span><span class="n">Lexicon</span><span class="p">):</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+</pre></div>
+
+<p>A few of the advantages include:</p>
+
+<ul>
+<li>define an arbitrary <code>order</code> of the items in the lexicon</li>
+<li>define a integer <code>code</code> which is useful for downstream clients that
+prefer working with a enumerable set of values such as SAS or R</li>
+<li>define a verbose/more readable label for each item
+
+<ul>
+<li>For example map <em>Jan</em> to <em>January</em>
+</li>
+</ul>
+</li>
+</ul><p>In addition, Avocado treats Lexicon subclasses specially since it is such a
+common practice to use them. They are used in the following ways:</p>
+
+<ul>
+<li>performing a <code>sync</code> will ignore the <code>label</code>, <code>code</code>, and <code>order</code>
+fields since they are supplementary to the <code>value</code> (you can of course add them
+manually later)</li>
+<li>the <code>DataField</code> that represents the <code>value</code> field on a Lexicon subclass will
+
+<ul>
+<li>use the <code>order</code> field whenever accessing values or when applied to a query</li>
+<li>use the <code>label</code> field when accessing <code>f.labels</code>
+</li>
+<li>use the <code>code</code> field when accessing <code>f.codes</code>
+</li>
+</ul>
+</li>
+</ul><hr><h2>Management Commands</h2>
+
+<p>Avocado commands are namespaced under <code>avocado</code>. Execute <code>./bin/manage.py avocado</code> to view a list of available subcommands.</p>
+
+<h3>sync</h3>
+
+<p>The sync command creates DataField instances from Djang model fields. This will be used whenever new models or new fields are added to your data model.</p>
+
+<div class="highlight"><pre>./manage.py avocado sync labels <span class="o">[</span>--update<span class="o">]</span> <span class="o">[</span>--include-keys<span class="o">]</span> <span class="o">[</span>--include-non-editable<span class="o">]</span>
+</pre></div>
+
+<h4>Parameters</h4>
+
+<ul>
+<li>
+<code>labels</code> - refers to one or more space-separated app, model or field labels, for example library.book refers the the model Book in the app library.</li>
+<li>
+<code>--update</code> - updates existing field instances (relative to the apps or models defined and overwrites any existing descriptive values such as name, name_plural, and description.</li>
+<li>
+<code>--include-non-editable</code> - creates field instance for model fields with editable=False (by default these are ignored).</li>
+<li>
+<code>--include-keys</code> - creates fields instances for primary and foreign key fields (by default these are ignored).</li>
+</ul><h3>orphaned</h3>
+
+<p>Checks for DataField instances that no longer map to Django model fields (like a dead hyperlink).</p>
+
+<div class="highlight"><pre>./manage.py avocado orphaned <span class="o">[</span>--unpublish<span class="o">]</span>
+</pre></div>
+
+<h4>Parameters</h4>
+
+<p><code>--unpublish</code> - unpublishes all fields found to be orphaned.</p>
+
+<h3>data</h3>
+
+<p>Finds all models referenced by the app or model <code>labels</code> and updates data-related properties such as caches and pre-calculated values.</p>
+
+<div class="highlight"><pre>./manage.py avocado data labels <span class="o">[</span>--modified<span class="o">]</span>
+</pre></div>
+
+<h4>Parameters</h4>
+
+<ul>
+<li>
+<code>labels</code> - refers to one or more space-separated app, model, or field labels, for example library.book refers the the model Book in the app library.</li>
+<li>
+<code>--modified</code> - Updates the <code>data_modified</code> on <code>DataField</code> instances corresponding the labels. This is primarily used for cache invalidation.</li>
+</ul><p><strong>Note, currently <code>--modified</code> is the only flag that does anything</strong></p>
+
+<h3>cache</h3>
+
+<p>Finds all models referenced by the app, model or field <code>labels</code> and explicitly updates various cached properties relative to the <code>data_modified</code> on <code>DataField</code> instances.</p>
+
+<h2>Settings</h2>
+
+<p>Avocado settings are defined as a dictionary, named <code>AVOCADO</code>, with each key corresponding to a setting listed below:</p>
+
+<div class="highlight"><pre><span class="n">AVOCADO</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">'SIMPLE_TYPE_MAP'</span><span class="p">:</span> <span class="p">{</span> <span class="o">...</span> <span class="p">},</span>
+    <span class="s">'SYNC_ENUMERABLE_MAXIMUM'</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>SIMPLE_TYPE_MAP</h3>
+
+<p><code>DataField</code> datatypes from Avocado's perspective are used purely as metadata for the purposes of making the underlying data accessible.</p>
+
+<p>This setting is used to customize what is returned by the <code>f.datatype</code> property. The default datatype comes from the internal datatype of a the model field's <code>get_internal_type()</code> method. Any of these default datatypes can be mapped to some other datatype.</p>
+
+<p>Datatypes in this context should be simple, for example not differentiating between <code>int</code>, <code>float</code>, or <code>Decimal</code>. They are all just numbers, to that is the datatype.</p>
+
+<p>These datatypes help define how input is validated and which operators are allowed.</p>
+
+<p>The default map:</p>
+
+<pre><code># A mapping between model field internal datatypes and sensible
+# client-friendly datatypes. In virtually all cases, client programs
+# only need to differentiate between high-level types like number, string,
+# and boolean. More granular separation be may desired to alter the
+# allowed operators or may infer a different client-side representation
+SIMPLE_TYPE_MAP = {
+    'auto': 'number',
+    'biginteger': 'number',
+    'decimal': 'number',
+    'float': 'number',
+    'integer': 'number',
+    'positiveinteger': 'number',
+    'positivesmallinteger': 'number',
+    'smallinteger': 'number',
+
+    'nullboolean': 'boolean',
+
+    'char': 'string',
+    'email': 'string',
+    'file': 'string',
+    'filepath': 'string',
+    'image': 'string',
+    'ipaddress': 'string',
+    'slug': 'string',
+    'text': 'string',
+    'url': 'string',
+}
+</code></pre>
+
+<h3>OPERATOR_MAP</h3>
+
+<pre><code># A mapping between the client-friendly datatypes and sensible operators
+# that will be used to validate a query condition. In many cases, these types
+# support more operators than what are defined, but are not include because
+# they are not commonly used.
+OPERATOR_MAP = {
+    'boolean': ('exact', '-exact', 'in', '-in'),
+    'date': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
+    'number': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
+    'string': ('exact', '-exact', 'iexact', '-iexact', 'in', '-in', 'icontains', '-icontains'),
+    'datetime': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
+    'time': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
+}
+</code></pre>
+
+<h3>INTERNAL_TYPE_FORMFIELDS</h3>
+
+<pre><code># A general mapping of formfield overrides for all subclasses. the mapping is
+# similar to the SIMPLE_TYPE_MAP, but the values reference internal
+# formfield classes, that is integer -&gt; IntegerField. in many cases, the
+# validation performed may need to be a bit less restrictive than what the
+# is actually necessary
+INTERNAL_TYPE_FORMFIELDS = {
+    'auto': 'IntegerField',
+    'integer': 'FloatField',
+    'positiveinteger': 'FloatField',
+    'positivesmallinteger': 'FloatField',
+    'smallinteger': 'FloatField',
+
+    # Generic datatypes mapped from above
+    'number': 'FloatField',
+}
+</code></pre>
+
+<h3>SYNC_ENUMERABLE_MAXIMUM</h3>
+
+<pre><code># The maximum number of distinct values allowed for setting the
+# `enumerable` flag on `DataField` instances during the `sync` process. This
+# will only be applied to fields with non-text strings types and booleans
+SYNC_ENUMERABLE_MAXIMUM = 30
+</code></pre>
+
+<hr><h1>Optional App Integration</h1>
+
+<h2><a href="http://south.aeracode.org/">South</a></h2>
+
+<p>Django's de facto app for creating and managing database migrations. 'nuff said.</p>
+
+<h2><a href="http://haystacksearch.org/">django-haystack</a></h2>
+
+<p>Avocado utilizes Haystack for building search indexes for <code>DataField</code> and <code>DataConcept</code> objects and their underlying data. In practice, this is primarily used for clients exposing a search feature for finding the <code>DataField</code> or <code>DataConcept</code> representations for some data.</p>
+
+<h2><a href="http://justquick.github.com/django-activity-stream/">django-activity-stream</a></h2>
+
+<p>Avocado is about supporing data discovery and iteration by providing APIs for rapidly implementing interfaces, enabling this workflow. Many of our in-house applications have made good use of tracking users' own discovery and iteration progress. In practice, this acts as a history/log of a user's discovery workflow. This can be useful for users and developers alike.</p>
+
+<p>If this app is installed, changes to <code>DataContext</code> and <code>Query</code> objects will trigger actions to be sent to the respective user's stream.</p>
+
+<h2>
+<a href="http://numpy.scipy.org/">Numpy</a> &amp; <a href="http://www.scipy.org/">SciPy</a>
+</h2>
+
+<p>Avocado has support for clustering continuous numeric values when generating distribution queries.</p>
+
+<hr><h2>Examples</h2>
+
+<h3>DataContext Condition Trees</h3>
+
+<h4>Single Condition</h4>
+
+<div class="highlight"><pre><span class="p">{</span>
+    <span class="s2">"id"</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"iexact"</span><span class="p">,</span>
+    <span class="s2">"value"</span><span class="o">:</span> <span class="mi">50</span>
+<span class="p">}</span>
+</pre></div>
+
+<h4>Branch with Two Conditions</h4>
+
+<div class="highlight"><pre><span class="p">{</span>
+    <span class="s2">"type"</span><span class="o">:</span> <span class="s2">"and"</span><span class="p">,</span>
+    <span class="s2">"children"</span><span class="o">:</span> <span class="p">[{</span>
+        <span class="s2">"id"</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"iexact"</span><span class="p">,</span>
+        <span class="s2">"value"</span><span class="o">:</span> <span class="mi">50</span>
+    <span class="p">},</span> <span class="p">{</span>
+        <span class="s2">"id"</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"in"</span><span class="p">,</span>
+        <span class="s2">"value"</span><span class="o">:</span> <span class="p">[</span><span class="s2">"foo"</span><span class="p">,</span> <span class="s2">"bar"</span><span class="p">]</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h4>Branch with One Condition and One Branch</h4>
+
+<div class="highlight"><pre><span class="p">{</span>
+    <span class="s2">"type"</span><span class="o">:</span> <span class="s2">"or"</span><span class="p">,</span>
+    <span class="s2">"children"</span><span class="o">:</span> <span class="p">[{</span>
+        <span class="s2">"id"</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"iexact"</span><span class="p">,</span>
+        <span class="s2">"value"</span><span class="o">:</span> <span class="mi">50</span>
+    <span class="p">},</span> <span class="p">{</span>
+        <span class="s2">"type"</span><span class="o">:</span> <span class="s2">"and"</span><span class="p">,</span>
+        <span class="s2">"children"</span><span class="o">:</span> <span class="p">[{</span>
+            <span class="s2">"id"</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"in"</span><span class="p">,</span>
+            <span class="s2">"value"</span><span class="o">:</span> <span class="p">[</span><span class="s2">"foo"</span><span class="p">,</span> <span class="s2">"bar"</span><span class="p">]</span>
+        <span class="p">},</span> <span class="p">{</span>
+            <span class="s2">"id"</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"in"</span><span class="p">,</span>
+            <span class="s2">"value"</span><span class="o">:</span> <span class="p">[</span><span class="s2">"baz"</span><span class="p">,</span> <span class="s2">"qux"</span><span class="p">]</span>
+        <span class="p">}]</span>
+    <span class="p">}]</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>Notes</h2>
+
+<h3>Internal vs. Simple Types</h3>
+
+<p>Internal types correspond to the model field's class and are necessary when performing write operations for data intregrity. For query purposes, internal types tend to be too <em>low-level</em> and restrictive during query validation. To provide a less restrictive interface for query validation, Avocado introduces a <em>simple</em> type which merely maps internal types to a higher-level type such as <em>string</em> or <em>number</em>.</p>
+
+<h3>Relationships Are Transparent</h3>
+
+<p>Avocado uses the <a href="https://github.com/cbmi/modeltree">ModelTree</a> API to build in-memory indexes for each model accessed by the application. To build an index, all possible paths from the given <em>root</em> model are traversed and metadata about each relationship is captured. When a query needs to be generated, the lookup string can be generated for a model field relative to the root model.</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">tree</span> <span class="o">=</span> <span class="n">ModelTree</span><span class="p">(</span><span class="n">Author</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">title</span> <span class="o">=</span> <span class="n">Book</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">get_field_by_name</span><span class="p">(</span><span class="s">'title'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">tree</span><span class="o">.</span><span class="n">query_string_for_field</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="s">'icontains'</span><span class="p">)</span>
+<span class="s">'book__title__icontains'</span>
+</pre></div>
+
+<p>This looks a bit clumsy in practice which is why Avocado uses the <code>DataField</code> class to manage all this field-specific <em>stuff</em>.</p>
+
+<p>Having these indexes enables generating queries regardless of the entry point and which fields are being queried or retrieved. This perceivably <em>flattens</em> out the data model from the client's perspective which increases it's accessiblity.</p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+		          <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-30792817-2");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
