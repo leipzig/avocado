@@ -32,6 +32,8 @@
       <section>
         <h1>Avocado</h1>
 
+<h4>Metadata APIs for Django</h4>
+
 <h2>Target Audience</h2>
 
 <p><strong>Developers who are interested in letting their data do the work for them.</strong></p>
@@ -269,13 +271,15 @@
 <li>
 <code>f.size</code> - Returns the number of <em>distinct</em> values for this field</li>
 <li>
+<code>f.values_list</code> - Returns a <code>ValuesQuerySet</code> of distinct values for the field.
+This is primarily used by the below functions. Useful applying additional QuerySet
+operations.</li>
+<li>
 <code>f.values</code> - Returns a tuple of distinct raw values ordered by the field. If the corresponding model is a subclass of Avocado's <code>Lexicon</code> abstract model, the order corresponds to the <code>order</code> field on the <code>Lexicon</code> model subclass. Read more about the <a href="#lexicon-abstract-class"><code>Lexicon</code> abstract class</a>.</li>
 <li>
 <code>f.labels</code> - Returns a unicoded tuple of labels. If the corresponding model is a subclass of Avocado's <code>Lexicon</code> abstract model, this corresponds to the <code>label</code> field on the <code>Lexicon</code> model subclass. Read more about the <a href="#lexicon-abstract-class"><code>Lexicon</code> abstract class</a>.</li>
 <li>
 <code>f.choices</code> - A tuple of pairs zipped from <code>f.values</code> and <code>f.labels</code>. This is useful for populating form fields for client applications.</li>
-<li>
-<code>f.query()</code> - Returns a <code>ValuesQuerySet</code> for this field. This is equivalent to <code>f.model.objects.values(f.field_name)</code>.</li>
 </ul><div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">internal_type</span>
 <span class="s">'char'</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">simple_type</span>
@@ -288,9 +292,23 @@
 <span class="p">(</span><span class="s">u'A Christmas Carol'</span><span class="p">,</span> <span class="s">u'A Tale of Two Cities'</span><span class="p">,</span> <span class="s">u'The Adventures of Oliver Twist'</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">choices</span>
 <span class="p">((</span><span class="s">'A Christmas Carol'</span><span class="p">,</span> <span class="s">u'A Christmas Carol'</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
-<span class="p">[{</span><span class="s">'title'</span><span class="p">:</span> <span class="s">'A Christmas Carol'</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">values_list</span>
+<span class="p">[</span><span class="s">'A Christmas Carol'</span><span class="p">,</span> <span class="s">'A Tale of Two Cities'</span><span class="p">,</span> <span class="s">'The Adventures of Oliver Twist'</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
 </pre></div>
+
+<h5>Lexicon &amp; ObjectSet</h5>
+
+<p>In addition to the above <code>DataField</code> API, instances that represent a 
+<code>Lexicon</code> or <code>ObjectSet</code> class can utilize the <code>f.objects</code> property, normally
+only available to <code>Model</code> classes. It will return a <code>QuerySet</code> of the model
+it represents:</p>
+
+<div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">f</span> <span class="o">=</span> <span class="n">DataField</span><span class="p">(</span><span class="n">app_name</span><span class="o">=</span><span class="s">'dates'</span><span class="p">,</span> <span class="n">model_name</span><span class="o">=</span><span class="s">'month'</span><span class="p">,</span> <span class="n">field_name</span><span class="o">=</span><span class="s">'id'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">objects</span>
+<span class="p">[</span><span class="o">&lt;</span><span class="n">Month</span><span class="p">:</span> <span class="s">'January'</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">&lt;</span><span class="n">Month</span><span class="p">:</span> <span class="s">'February'</span><span class="o">&gt;</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+
+<p>Read more about Lexicons and ObjectSets below.</p>
 
 <h4>Aggregation</h4>
 
@@ -580,7 +598,67 @@ manually later)</li>
 </li>
 </ul>
 </li>
-</ul><hr><h2>Template Tags</h2>
+</ul><hr><h2>Object Sets</h2>
+
+<p>It is common for saving off sets of objects (e.g. patients) for later reference. This enables performing actions to the set without the constraints of the query conditions as well as performing basic set operations such as union and intersection between sets of the same type.</p>
+
+<p>The main benefits include:</p>
+
+<ul>
+<li>API for creating persistant, on-the-fly sets of objects (effectively materialized views)</li>
+<li>Performance benefits of joining on a fixed set of a objects without the encumbrance of query conditions</li>
+<li>Using sets as building blocks for creating more complicated queries that may be virtually impossible for end users to construct manually otherwise</li>
+</ul><p>For models that need to be <em>set-enabled</em>, the model should subclass <code>ObjectSet</code> which will make it easier elsewhere to make use of such models. The subclass must implement a <code>ManyToManyField</code> pointing to the model of interest.</p>
+
+<p>The usage should look like this:</p>
+
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">avocado.sets</span> <span class="kn">import</span> <span class="n">ObjectSet</span><span class="p">,</span> <span class="n">SetObject</span>
+
+<span class="k">class</span> <span class="nc">PatientSet</span><span class="p">(</span><span class="n">ObjectSet</span><span class="p">):</span>
+    <span class="n">patients</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Patient</span><span class="p">,</span> <span class="n">through</span><span class="o">=</span><span class="s">'PatientSetObject'</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PatientSetObject</span><span class="p">(</span><span class="n">SetObject</span><span class="p">):</span>
+    <span class="c"># The db_column overrides are certainly not necessary, but makes the</span>
+    <span class="c"># column names a bit more readable when writing raw queries..</span>
+    <span class="n">object_set</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">PatientSet</span><span class="p">,</span> <span class="n">db_column</span><span class="o">=</span><span class="s">'set_id'</span><span class="p">)</span>
+    <span class="n">set_object</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Patient</span><span class="p">,</span> <span class="n">db_column</span><span class="o">=</span><span class="s">'object_id'</span><span class="p">)</span>
+</pre></div>
+
+<p>The main integration point is exposing sets as a means of filtering the object of interest. </p>
+
+<ul>
+<li>female patients</li>
+<li>less than 5 years of age</li>
+<li>who are in my "african americans with conductive hearing loss" set</li>
+</ul><p>This translates to a <code>DataContext</code> that looks like this:</p>
+
+<div class="highlight"><pre><span class="p">{</span>
+    <span class="s2">"type"</span><span class="o">:</span> <span class="s2">"and"</span><span class="p">,</span>
+    <span class="s2">"children"</span><span class="o">:</span> <span class="p">[{</span>
+        <span class="s2">"id"</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c1">// sex datafield</span>
+        <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"exact"</span><span class="p">,</span>
+        <span class="s2">"value"</span><span class="o">:</span> <span class="s2">"female"</span>
+    <span class="p">},</span> <span class="p">{</span>
+        <span class="s2">"id"</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span> <span class="c1">// age datafield</span>
+        <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"lt"</span>
+        <span class="s2">"value"</span><span class="o">:</span> <span class="mi">5</span>
+    <span class="p">},</span> <span class="p">{</span>
+        <span class="s2">"id"</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span> <span class="c1">// patientset datafield</span>
+        <span class="s2">"operator"</span><span class="o">:</span> <span class="s2">"exact"</span><span class="p">,</span>
+        <span class="s2">"value"</span><span class="o">:</span> <span class="mi">30</span> <span class="c1">// patientset id</span>
+    <span class="p">}]</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Although it may be queried and exposed as querying on the set itself, the actually query being executed must join from <code>Patient</code> → <code>PatientSetObject</code> where <code>set_id = 30</code>. The translator must map from an <code>ObjectSet</code> subclass to it's respective M2M through model. The output SQL would look something like:</p>
+
+<div class="highlight"><pre><span class="k">SELECT</span> <span class="p">...</span> <span class="k">some</span> <span class="n">columns</span> <span class="p">...</span>
+<span class="k">FROM</span> <span class="ss">"patient"</span> <span class="k">INNER</span> <span class="k">JOIN</span> <span class="ss">"patientsetobject"</span> <span class="k">ON</span> <span class="p">(</span><span class="ss">"patient"</span><span class="p">.</span><span class="ss">"id"</span> <span class="o">=</span> <span class="ss">"patientsetobject"</span><span class="p">.</span><span class="ss">"object_id"</span><span class="p">)</span>
+<span class="k">WHERE</span> <span class="ss">"patient"</span><span class="p">.</span><span class="ss">"sex"</span> <span class="o">=</span> <span class="s1">'female'</span> <span class="k">AND</span> <span class="ss">"patient"</span><span class="p">.</span><span class="ss">"age"</span> <span class="o">&lt;</span> <span class="mi">5</span> <span class="k">AND</span> <span class="ss">"patientsetobject"</span><span class="p">.</span><span class="ss">"set_id"</span> <span class="o">=</span> <span class="mi">30</span>
+</pre></div>
+
+<hr><h2>Template Tags</h2>
 
 <p>Avocado provides single base templatetag (similar to the management commands). The syntax is as follows:</p>
 
