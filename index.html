@@ -30,7 +30,7 @@
 
       </header>
       <section>
-        <h1>Avocado</h1>
+        <h1>avocado</h1>
 
 <h4>Metadata APIs for Django</h4>
 
@@ -414,7 +414,7 @@ it represents:</p>
 
 <p>As much as Avocado is a metadata management tool, a prime consumer of this metadata are humans. More specifically, the metadata can be used to provide more context and meaning to the data and the data model.</p>
 
-<p>The notion of a <code>DataConcept</code> came from the need to represent discrete data in a human-readable domain-specific way. Data is typically stored in a normalized, discrete and efficient way, thus rendering it a bit obscure in it's raw state. Sometimes a single <em>column</em> of data in database table is meaningless without another column, for example a column of <code>weight</code> without the column of <code>unit</code>.</p>
+<p>The notion of a <code>DataConcept</code> came from the need to represent discrete data in a human-readable domain-specific way. Data is typically stored in a normalized, discrete and efficient way, thus rendering is a bit obscure in it's raw state. Sometimes a single <em>column</em> of data in database table is meaningless without another column, for example a column of <code>weight</code> without the column of <code>unit</code>.</p>
 
 <p>Of course, data must be stored in this discrete way to ensure the database can treat it properly and perform the correct operations on that data. Unfortunately, humans don't care about how data is stored, nor should they. <strong>They simply want the data to be accessible so they can consume it in a way that makes sense to them.</strong></p>
 
@@ -435,8 +435,6 @@ it represents:</p>
 
 <p>The most common utility of the DataConcept abstraction is formatting the fields' data in a usable format for the consumer. The consumer may be a human, a Web browser, an R interpreter or anything else. Regardless of the consume, formatters provide an API for taking in raw data and outputting a representation of that data.</p>
 
-<p>The most common utility of the <code>DataConcept</code> abstraction is formatting the fields' data in a usable format for the consumer. The consumer may be a human, a Web browser, an R interpreter or anything else. Regardless of the consume, formatters provide an API for taking in raw data and outputting a representation of that data.</p>
-
 <div class="highlight"><pre><span class="kn">from</span> <span class="nn">avocado.formatters</span> <span class="kn">import</span> <span class="n">Formatter</span>
 <span class="c"># Get the 'Dosage' concept which combines the 'dose'</span>
 <span class="c"># and 'unit' fields</span>
@@ -448,7 +446,12 @@ it represents:</p>
 <span class="n">formatter</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">preferred_formats</span><span class="o">=</span><span class="p">[</span><span class="s">'string'</span><span class="p">])</span>
 </pre></div>
 
-<p>A formatter attempts to solve two problems. First, <strong>coerce the various values into the preferred format</strong> and secondly, perform an operation on each or all of the values. As shown above, the <code>formatter</code> instance is callable and takes a sequence of <code>values</code> and a <code>preferred_formats</code> argument. Since this is the base formatter class, aside from being good at coercing datatypes, it is not terribly useful.</p>
+<p>A formatter attempts to solve two problems: </p>
+
+<ul>
+<li>Coerce the various values into the preferred format </li>
+<li>Perform an operation on each or all of the values. </li>
+</ul><p>As shown above, the <code>formatter</code> instance is callable and takes a sequence of <code>values</code> and a <code>preferred_formats</code> argument. Since this is the base formatter class, it is only useful for coercing datatypes.</p>
 
 <p>Formatters can be easily created by subclassing the base <code>Formatter</code> class and adding, overriding, or augmenting the methods. As stated above, a formatter can be applied each raw value or all values together. As an example of this, we can create a simple <code>ConcatFormatter</code>.</p>
 
@@ -667,7 +670,7 @@ manually later)</li>
 
 <h3>Load</h3>
 
-<p>Currently, the only <em>sub-tag</em> implemented is the <code>load</code> command for loading <code>DataField and</code>DataConcept` instances on demand:</p>
+<p>Currently, the only avocado template tag command implemented is the <code>load</code> command for loading <code>DataField</code> and <code>DataConcept</code> instances on demand:</p>
 
 <p><strong>DataField with primary key</strong></p>
 
@@ -686,7 +689,7 @@ manually later)</li>
 
 <h4>Example</h4>
 
-<p>This enables using all the wonderful metadata API documented above dynamically:</p>
+<p>This enables using the metadata dynamically in templates through the API, which is documented above.</p>
 
 <div class="highlight"><pre><span class="cp">{%</span> <span class="k">avocado</span> <span class="nv">load</span> <span class="nv">field</span> <span class="s2">"library.author.name"</span> <span class="k">as</span> <span class="nv">author</span> <span class="cp">%}</span><span class="x"></span>
 
@@ -703,7 +706,7 @@ manually later)</li>
 
 <h3>sync</h3>
 
-<p>The sync command creates DataField instances from Djang model fields. This will be used whenever new models or new fields are added to your data model.</p>
+<p>The sync command creates <code>DataField</code> instances from Django model fields. This will be used whenever new models or new fields are added to your data model.</p>
 
 <div class="highlight"><pre>./manage.py avocado sync labels <span class="o">[</span>--update<span class="o">]</span> <span class="o">[</span>--include-keys<span class="o">]</span> <span class="o">[</span>--include-non-editable<span class="o">]</span>
 </pre></div>
@@ -721,7 +724,7 @@ manually later)</li>
 <code>--include-keys</code> - creates fields instances for primary and foreign key fields (by default these are ignored).</li>
 </ul><h3>orphaned</h3>
 
-<p>Checks for DataField instances that no longer map to Django model fields (like a dead hyperlink).</p>
+<p>Checks for <code>DataField</code> instances that no longer map to Django model fields (like a dead hyperlink).</p>
 
 <div class="highlight"><pre>./manage.py avocado orphaned <span class="o">[</span>--unpublish<span class="o">]</span>
 </pre></div>
