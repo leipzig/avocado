@@ -30,7 +30,7 @@
 
       </header>
       <section>
-        <h1>avocado</h1>
+        <h1>Avocado</h1>
 
 <h4>Metadata APIs for Django</h4>
 
@@ -708,7 +708,7 @@ manually later)</li>
 
 <p>The sync command creates <code>DataField</code> instances from Django model fields. This will be used whenever new models or new fields are added to your data model.</p>
 
-<div class="highlight"><pre>./manage.py avocado sync labels <span class="o">[</span>--update<span class="o">]</span> <span class="o">[</span>--include-keys<span class="o">]</span> <span class="o">[</span>--include-non-editable<span class="o">]</span>
+<div class="highlight"><pre>./manage.py avocado sync labels <span class="o">[</span>--force<span class="o">]</span> <span class="o">[</span>--include-keys<span class="o">]</span> <span class="o">[</span>--include-non-editable<span class="o">]</span>
 </pre></div>
 
 <p><strong>Parameters</strong></p>
@@ -717,7 +717,7 @@ manually later)</li>
 <li>
 <code>labels</code> - refers to one or more space-separated app, model or field labels, for example library.book refers the the model Book in the app library.</li>
 <li>
-<code>--update</code> - updates existing field instances (relative to the apps or models defined and overwrites any existing descriptive values such as name, name_plural, and description.</li>
+<code>--force</code> - forces an update to existing field instances (relative to the apps or models defined and overwrites any existing descriptive values such as name, name_plural, and description.</li>
 <li>
 <code>--include-non-editable</code> - creates field instance for model fields with editable=False (by default these are ignored).</li>
 <li>
