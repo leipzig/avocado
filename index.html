@@ -184,13 +184,13 @@
 
 <p>To reiterate the introduction above, Avocado is about defining metadata and making use of existing metadata surrounding your data model.</p>
 
-<p>Avocado comes with a <code>sync</code> subcommand which introspects Django models and creates <code>DataField</code> instances representing the model fields. At least one app label (<code>library</code>) or model label (<code>library.book</code>) must be specified.</p>
+<p>Avocado comes with a <code>init</code> subcommand which introspects Django models and creates <code>DataField</code> instances representing the model fields. At least one app label (<code>library</code>) or model label (<code>library.book</code>) must be specified.</p>
 
 <p>By default, <code>DataField</code> instances are not created for primary and foreign key fields. In practice, surrogate key fields are used infrequently as is, thus they are not created by default. To override this behavior and include key fields, add the flag <code>--include-keys</code>.</p>
 
 <p>Likewise, model fields may be marked as not being editable in the model field definitions. This flag is turned on typically for operational or bookkeeping fields such as timestamps. By default, <code>DataField</code> instances are not created for these either, but can be overridden by passing the <code>--include-non-editable</code>.</p>
 
-<div class="highlight"><pre>./manage.py avocado sync library
+<div class="highlight"><pre>./manage.py avocado init library
 1 field added <span class="k">for </span>Author
 2 fields added <span class="k">for </span>Book
 </pre></div>
@@ -264,9 +264,7 @@
 
 <ul>
 <li>
-<code>f.enumerable</code> - A flag denoting if the field's data is composed of an enumerable set. During a <a href="avocado-sync">sync</a>, each field's data is evaluated based on the internal type and the size of the data (number of distinct values). By default, if the field is a <code>CharField</code> and has <code>SYNC_ENUMERABLE_MAXIMUM</code> or less distinct values, this will be set to <code>True</code>. </li>
-<li>
-<code>f.searchlable</code> - A flag denoting if the field's data should be treated as searchable text. This applies to <code>TextField</code>s and <code>CharField</code>s which don't meet the requirements for being <code>enumerable</code>.</li>
+<code>f.enumerable</code> - A flag denoting if the field's data is composed of an enumerable set. During a <a href="avocado-init">init</a>, each field's data is evaluated based on the internal type and the size of the data (number of distinct values). By default, if the field is a <code>CharField</code> and has <code>ENUMERABLE_MAXIMUM</code> or less distinct values, this will be set to <code>True</code>. </li>
 </ul><h5>Read-only</h5>
 
 <ul>
@@ -285,6 +283,8 @@ This is primarily used by the functions below. Useful when you want to apply add
 <code>f.labels</code> - Returns a unicoded tuple of labels. If the corresponding model is a subclass of Avocado's <code>Lexicon</code> abstract model, this corresponds to the <code>label</code> field on the <code>Lexicon</code> model subclass. Read more about the <a href="#lexicon-abstract-class"><code>Lexicon</code> abstract class</a>.</li>
 <li>
 <code>f.choices</code> - A tuple of pairs zipped from <code>f.values</code> and <code>f.labels</code>. This is useful for populating form fields for client applications.</li>
+<li>
+<code>f.searchable</code> (DEPRECATED) - A flag denoting if the field's data should be treated as searchable text. This applies to <code>TextField</code>s and <code>CharField</code>s which are not marked as <code>enumerable</code>.</li>
 </ul><div class="highlight"><pre><span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">internal_type</span>
 <span class="s">'char'</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">f</span><span class="o">.</span><span class="n">simple_type</span>
@@ -449,7 +449,7 @@ it represents:</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">unit</span> <span class="o">=</span> <span class="n">DataField</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_by_natural_key</span><span class="p">(</span><span class="s">'models'</span><span class="p">,</span> <span class="s">'prescriptions'</span><span class="p">,</span> <span class="s">'unit'</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">interval</span> <span class="o">=</span> <span class="n">DataField</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_by_natural_key</span><span class="p">(</span><span class="s">'models'</span><span class="p">,</span> <span class="s">'prescriptions'</span><span class="p">,</span> <span class="s">'interval'</span><span class="p">)</span>
 <span class="c"># Recall, the DataFields are populated when you call </span>
-<span class="c"># './manage.py avocado sync'</span>
+<span class="c"># './manage.py avocado init'</span>
 
 <span class="c"># Add the DataFields to the DataConcept</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">DataConceptField</span><span class="p">(</span><span class="n">concept</span><span class="o">=</span><span class="n">concept</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">dose</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
@@ -649,7 +649,7 @@ prefer working with a enumerable set of values such as SAS or R</li>
 common practice to use them. They are used in the following ways:</p>
 
 <ul>
-<li>performing a <code>sync</code> will ignore the <code>label</code>, <code>code</code>, and <code>order</code>
+<li>performing a <code>init</code> will ignore the <code>label</code>, <code>code</code>, and <code>order</code>
 fields since they are supplementary to the <code>value</code> (you can of course add them
 manually later)</li>
 <li>the <code>DataField</code> that represents the <code>value</code> field on a Lexicon subclass will
@@ -765,11 +765,11 @@ manually later)</li>
 
 <p>Avocado commands are namespaced under <code>avocado</code>. Execute <code>./bin/manage.py avocado</code> to view a list of available subcommands.</p>
 
-<h3>sync</h3>
+<h3>init</h3>
 
-<p>The sync command creates <code>DataField</code> instances from Django model fields. This will be used whenever new models or new fields are added to your data model.</p>
+<p>The init command creates <code>DataField</code> instances from Django model fields. This will be used whenever new models or new fields are added to your data model.</p>
 
-<div class="highlight"><pre>./manage.py avocado sync labels <span class="o">[</span>--force<span class="o">]</span> <span class="o">[</span>--include-keys<span class="o">]</span> <span class="o">[</span>--include-non-editable<span class="o">]</span>
+<div class="highlight"><pre>./manage.py avocado init labels <span class="o">[</span>--force<span class="o">]</span> <span class="o">[</span>--include-keys<span class="o">]</span> <span class="o">[</span>--include-non-editable<span class="o">]</span>
 </pre></div>
 
 <p><strong>Parameters</strong></p>
@@ -783,16 +783,19 @@ manually later)</li>
 <code>--include-non-editable</code> - creates field instance for model fields with editable=False (by default these are ignored).</li>
 <li>
 <code>--include-keys</code> - creates fields instances for primary and foreign key fields (by default these are ignored).</li>
-</ul><h3>orphaned</h3>
+</ul><h3>check</h3>
 
-<p>Checks for <code>DataField</code> instances that no longer map to Django model fields (like a dead hyperlink).</p>
+<p>Performs Avocado setup and optional dependency checks. It also checks for
+<code>DataField</code> instances that no longer map to Django model fields
+(like a dead hyperlink).</p>
 
-<div class="highlight"><pre>./manage.py avocado orphaned <span class="o">[</span>--unpublish<span class="o">]</span>
+<div class="highlight"><pre>./manage.py avocado check <span class="o">[</span>--output<span class="o">=</span>html<span class="o">]</span>
 </pre></div>
 
 <p><strong>Parameters</strong></p>
 
-<p><code>--unpublish</code> - unpublishes all fields found to be orphaned.</p>
+<p><code>--output</code> - Specify the output type of the report. Options are <code>html</code> or <code>stdout</code>.
+Default is <code>stdout</code>.</p>
 
 <h3>data</h3>
 
@@ -826,13 +829,31 @@ manually later)</li>
 <ul>
 <li>
 <code>--prune</code> - Prunes the oldest archived objects based on the <code>HISTORY_ENABLED</code> and <code>HISTORY_MAX_SIZE</code> settings.</li>
+</ul><h3>migration</h3>
+
+<p>Create a metadata fixture and corresponding South data migration script for remote loading of metadata.</p>
+
+<div class="highlight"><pre>./manage.py avocado migration <span class="o">[</span>migration_name<span class="o">]</span> <span class="o">[</span>fixture_name<span class="o">]</span> <span class="o">[</span>--no-fake<span class="o">]</span> <span class="o">[</span>--backup-path<span class="o">=</span>&lt;path&gt;<span class="o">]</span>
+</pre></div>
+
+<p><strong>Parameters</strong></p>
+
+<ul>
+<li>
+<code>migration_name</code> - Custom name of the migration file. Defaults to "avocado_metadata_migration"</li>
+<li>
+<code>fixture_name</code> - Custom name of the fixture name. Defaults to "avocado_metadata"</li>
+<li>
+<code>--no-fake</code> - By default, new migrations created will be immediately <em>faked</em> by South since the data migration is derived from the same database. This flag will prevent the faked migration from happening (this is not recommeneded).</li>
+<li>
+<code>--backup-path=&lt;path&gt;</code> - When the migration executes, a metadata fixture is created of the target database immediately (and in the same transaction) prior to loading the new fixture. By default a temporary file is created, but this argument defines a specific file to write to. Note that depending on where the migration execution occurs (e.g. on a remote machine) the file path must be valid as well as have the correct permissions to writing to the file.</li>
 </ul><h2>Settings</h2>
 
 <p>Avocado settings are defined as a dictionary, named <code>AVOCADO</code>, with each key corresponding to a setting listed below:</p>
 
 <div class="highlight"><pre><span class="n">AVOCADO</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s">'SIMPLE_TYPE_MAP'</span><span class="p">:</span> <span class="p">{</span> <span class="o">...</span> <span class="p">},</span>
-    <span class="s">'SYNC_ENUMERABLE_MAXIMUM'</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+    <span class="s">'ENUMERABLE_MAXIMUM'</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
     <span class="o">...</span>
 <span class="p">}</span>
 </pre></div>
@@ -847,107 +868,58 @@ manually later)</li>
 
 <p>These datatypes help define how input is validated and which operators are allowed.</p>
 
-<p>The default map:</p>
-
-<pre><code># A mapping between model field internal datatypes and sensible
-# client-friendly datatypes. In virtually all cases, client programs
-# only need to differentiate between high-level types like number, string,
-# and boolean. More granular separation be may desired to alter the
-# allowed operators or may infer a different client-side representation
-SIMPLE_TYPE_MAP = {
-    'auto': 'number',
-    'biginteger': 'number',
-    'decimal': 'number',
-    'float': 'number',
-    'integer': 'number',
-    'positiveinteger': 'number',
-    'positivesmallinteger': 'number',
-    'smallinteger': 'number',
-
-    'nullboolean': 'boolean',
-
-    'char': 'string',
-    'email': 'string',
-    'file': 'string',
-    'filepath': 'string',
-    'image': 'string',
-    'ipaddress': 'string',
-    'slug': 'string',
-    'text': 'string',
-    'url': 'string',
-}
-</code></pre>
-
 <h3>OPERATOR_MAP</h3>
 
-<pre><code># A mapping between the client-friendly datatypes and sensible operators
-# that will be used to validate a query condition. In many cases, these types
-# support more operators than what are defined, but are not include because
-# they are not commonly used.
-OPERATOR_MAP = {
-    'boolean': ('exact', '-exact', 'in', '-in'),
-    'date': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
-    'number': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
-    'string': ('exact', '-exact', 'iexact', '-iexact', 'in', '-in', 'icontains', '-icontains'),
-    'datetime': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
-    'time': ('exact', '-exact', 'in', '-in', 'lt', 'lte', 'gt', 'gte', 'range'),
-}
-</code></pre>
+<p>A mapping between the client-friendly datatypes and sensible operators
+that will be used to validate a query condition. In many cases, these types
+support more operators than what are defined, but are not include because
+they are not commonly used.</p>
 
 <h3>INTERNAL_TYPE_FORMFIELDS</h3>
 
-<pre><code># A general mapping of formfield overrides for all subclasses. the mapping is
-# similar to the SIMPLE_TYPE_MAP, but the values reference internal
-# formfield classes, that is integer -&gt; IntegerField. in many cases, the
-# validation performed may need to be a bit less restrictive than what the
-# is actually necessary
-INTERNAL_TYPE_FORMFIELDS = {
-    'auto': 'IntegerField',
-    'integer': 'FloatField',
-    'positiveinteger': 'FloatField',
-    'positivesmallinteger': 'FloatField',
-    'smallinteger': 'FloatField',
+<p>A general mapping of formfield overrides for all subclasses. the mapping is
+similar to the SIMPLE_TYPE_MAP, but the values reference internal
+formfield classes, that is integer -&gt; IntegerField. in many cases, the
+validation performed may need to be a bit less restrictive than what the
+is actually necessary</p>
 
-    # Generic datatypes mapped from above
-    'number': 'FloatField',
-}
-</code></pre>
+<h3>ENUMERABLE_MAXIMUM</h3>
 
-<h3>SYNC_ENUMERABLE_MAXIMUM</h3>
-
-<pre><code># The maximum number of distinct values allowed for setting the
-# `enumerable` flag on `DataField` instances during the `sync` process. This
-# will only be applied to fields with non-text strings types and booleans
-SYNC_ENUMERABLE_MAXIMUM = 30
-</code></pre>
+<p>The maximum number of distinct values allowed for setting the
+<code>enumerable</code> flag on <code>DataField</code> instances during the <code>init</code> process. This
+will only be applied to fields with non-text strings types and booleans</p>
 
 <h3>HISTORY_ENABLED</h3>
 
-<pre><code># Flag for enabling the history API
-HISTORY_ENABLED = False
-</code></pre>
+<p>Flag for enabling the history API.</p>
 
 <h3>HISTORY_MAX_SIZE</h3>
 
-<pre><code># The maximum size of a user's history. If the value is an integer, this
-# is the maximum number of allowed items in the user's history. Set to
-# `None` (or 0) to enable unlimited history. Note, in order to enforce this
-# limit, the `avocado history --prune` command must be executed to remove
-# the oldest history from each user based on this value.
-HISTORY_MAX_SIZE = None
-</code></pre>
+<p>The maximum size of a user's history. If the value is an integer, this
+is the maximum number of allowed items in the user's history. Set to
+<code>None</code> (or 0) to enable unlimited history. Note, in order to enforce this
+limit, the <code>avocado history --prune</code> command must be executed to remove
+the oldest history from each user based on this value.</p>
 
-<hr><h1>Optional App Integration</h1>
+<h3>METADATA_MIGRATION_APP</h3>
 
-<h2><a href="http://haystacksearch.org/">django-haystack</a></h2>
+<p>The app that the metadata migrations will be created for. This must be defined
+to use the <code>avocado migration</code> command.</p>
 
-<p>Avocado utilizes Haystack for building search indexes for <code>DataField</code> and <code>DataConcept</code> objects and their underlying data. In practice, this is primarily used for clients exposing a search feature for finding the <code>DataField</code> or <code>DataConcept</code> representations for some data.</p>
+<h3>METADATA_FIXTURE_DIR</h3>
 
-<h2>
-<a href="http://numpy.scipy.org/">Numpy</a> &amp; <a href="http://www.scipy.org/">SciPy</a>
-</h2>
+<p>The directory where the metadata fixtures will be written to. If not defined,
+it will default to the fixtures directory in the app defined by
+<code>METADATA_MIGRATION_APP</code>.</p>
 
-<p>Avocado has support for clustering continuous numeric values when generating distribution queries.</p>
+<h3>METADATA_FIXTURE_SUFFIX</h3>
+
+<p>The <em>suffix</em> of the metadata fixtures. Default is <code>avocado_metadata</code>.</p>
+
+<h3>METADATA_MIGRATION_SUFFIX</h3>
+
+<p>The <em>suffix</em> of the South migration scripts for migrating the metadata.
+Default is <code>avocado_metadata_migration</code>.</p>
 
 <hr><h2>Examples</h2>
 
@@ -1023,14 +995,84 @@ HISTORY_MAX_SIZE = None
 
 <h2>CHANGELOG</h2>
 
-<p>2.0.12 <a href="https://github.com/cbmi/avocado/compare/2.0.11...2.0.12">diff</a></p>
+<p>2.0.17 <a href="https://github.com/cbmi/avocado/compare/2.0.16...2.0.17">diff</a></p>
+
+<ul>
+<li>Fix performance in <code>Formatter</code> class due to redundant logging</li>
+<li>Add support for <code>Decimal</code> types in <code>Formatter.to_number</code> method</li>
+</ul><p>2.0.16 <a href="https://github.com/cbmi/avocado/compare/2.0.15...2.0.16">diff</a></p>
+
+<ul>
+<li>Update ModelTree to version 1.1.3 (critical bug fix)</li>
+<li>Add receiver for change Avocado settings during test execution</li>
+<li>Add missing <code>DataField.coded_values</code> which the <code>Formatter.to_coded</code> relied on</li>
+</ul><p>2.0.15 <a href="https://github.com/cbmi/avocado/compare/2.0.14...2.0.15">diff</a></p>
+
+<ul>
+<li>Add backup utilities for performing metadata data migrations</li>
+<li>New command <code>avocado migration</code> for creating a metadata fixture and a corresponding South migration to load the fixture</li>
+<li>Fix bug in R and SAS exporters</li>
+<li>Improve <code>ObjectSet</code> class to enable deleting set objects rather than just flagging as being deleted
+
+<ul>
+<li>Pass the flag <code>delete=True</code> when calling a remove-based command, e.g. <code>foo.replace(objs, delete=True)</code>
+</li>
+</ul>
+</li>
+</ul><p>2.0.14 <a href="https://github.com/cbmi/avocado/compare/2.0.13...2.0.14">diff</a></p>
+
+<ul>
+<li>Fix bug that only checked for NumPy for the for SciPy feature</li>
+</ul><p>2.0.13 <a href="https://github.com/cbmi/avocado/compare/2.0.12...2.0.13">diff</a></p>
+
+<ul>
+<li>Change <code>HTMLFormatter</code> to require the <code>template</code> argument which may be a template name
+or a <code>Template</code> object.</li>
+<li>Allow arbitrary <code>*args</code> and <code>**kwargs</code> to be passed into <code>*Exporter.write</code> and
+<code>*Exporter.read</code> to enable propagation from <code>write</code> to <code>read</code>
+</li>
+<li>Add <code>short_name</code> and <code>long_name</code> for use downstream by clients</li>
+<li>Add <a href="https://github.com/cbmi/avocado/commit/e9865e6631bc62fc63d6cea439dd6d61f4d930d5">export-specific format as the first <em>preferred format</em></a>
+
+<ul>
+<li>This is a better default which enables specific formatting when needed. The more general format can be reused across formatters, but when very specific formatting is necessary, this default is preferred.</li>
+</ul>
+</li>
+<li>Refactor <code>DataField.model</code> and <code>DataField.field</code> to take in account <code>Lexicon</code> and <code>ObjectSet</code> models
+
+<ul>
+<li>The <em>real</em> field and model instances are now named <code>real_field</code> and <code>real_model</code>, respectively.</li>
+</ul>
+</li>
+<li>Fix #55, <code>Lexicon.label</code> is now correctly used by the <code>DataView</code>
+</li>
+<li>Rename <code>sync</code> subcommand to <code>init</code>
+</li>
+<li>Rename <code>SYNC_ENUMERABLE_MAXIMUM</code> to <code>ENUMERABLE_MAXIMUM</code>
+</li>
+<li>Remove <code>orphaned</code> command in favor of new <code>check</code> that performs multiple setup
+checks as well as check for invalid datafields.</li>
+<li>Remove <code>searchable</code> model field since this applies only to text-based fields.
+
+<ul>
+<li>This has been repurposed as a deprecated computed property</li>
+</ul>
+</li>
+<li>Fix #45, allow dict-based settings to be updated, but not overridden</li>
+<li>Remove <code>DataField.data_source</code> field
+
+<ul>
+<li>There was no functional utility of this field and is (currently) out of the scope for Avocado</li>
+</ul>
+</li>
+</ul><p>2.0.12 <a href="https://github.com/cbmi/avocado/compare/2.0.11...2.0.12">diff</a></p>
 
 <ul>
 <li>Rename <code>SasExporter</code> =&gt; <code>SASExporter</code> for caps consistency</li>
 </ul><p>2.0.11 <a href="https://github.com/cbmi/avocado/compare/2.0.10...2.0.11">diff</a></p>
 
 <ul>
-<li>Remove assumption of lowercasing the <code>app_name</code> during a sync</li>
+<li>Remove assumption of lowercasing the <code>app_name</code> during an init call</li>
 </ul><p>2.0.10 <a href="https://github.com/cbmi/avocado/compare/2.0.9...2.0.10">diff</a></p>
 
 <ul>
