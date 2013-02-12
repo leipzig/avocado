@@ -58,6 +58,10 @@ class Command(BaseCommand):
             dest='include_keys', default=False,
             help='Create fields for primary and foreign key fields'),
 
+        make_option('-b', '--verbose-names', action='store_true',
+            dest='verbose_names', default=False,
+            help='Prepend model name to field names'),
+
         make_option('-f', '--force', action='store_true',
             dest='force', default=False,
             help='Forces an update on existing field metadata'),
@@ -229,7 +233,10 @@ class Command(BaseCommand):
 
         if not datafield.name:
             # Use the default unicode representation of the datafield
-            datafield.name = unicode(datafield)
+            if options.get('verbose_names'):
+                datafield.name = datafield.default_name_with_model()
+            else:
+                datafield.name = datafield.default_name()
 
         # Update fields with flags
         datafield.__dict__.update(utils.get_heuristic_flags(datafield))

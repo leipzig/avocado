@@ -123,8 +123,7 @@ class DataField(BasePlural):
             return self.name
         if self.lexicon or self.objectset:
             return self.model._meta.verbose_name
-        return '{0} {1}'.format(self.model._meta.verbose_name,
-            self.field.verbose_name).title()
+        return self.default_name()
 
     def __len__(self):
         return self.size
@@ -139,6 +138,39 @@ class DataField(BasePlural):
     # primary key).
     def natural_key(self):
         return self.app_name, self.model_name, self.field_name
+
+    DETECT_CAPS = re.compile(r'[A-Z]')
+
+    def default_name(self):
+        """
+        Wrapper for the underlying field's verbose_name; to be used when a
+        field is being auto-created.  The field's verbose name is assumed to be
+        pre-formatted for title display.  Example: "CNV Variant Type".
+        """
+        if self.lexicon or self.objectset:
+            return self.model._meta.verbose_name.title()
+        if re.search(self.DETECT_CAPS, self.field.verbose_name):
+            return self.field.verbose_name
+        else:
+            return self.field.verbose_name.title()
+
+    def default_name_with_model(self):
+        """
+        Model-qualified underlying field verbose_name; might optionally be used
+        when a field is being auto-created.  The underlying verbose names are
+        assumed to be pre-formatted for title display.  Example: "CNV Results
+        Variant Type" (where "CNV Results" is the model verbose name and
+        "Variant Type" is the field verbose name).
+        """
+        if self.lexicon or self.objectset:
+            return self.model._meta.verbose_name
+        field_name = self.field.verbose_name
+        if not re.search(self.DETECT_CAPS, field_name):
+            field_name = field_name.title()
+        model_name = self.model._meta.verbose_name
+        if not re.search(self.DETECT_CAPS, model_name):
+            model_name = model_name.title()
+        return '{0} {1}'.format(model_name, field_name)
 
     # Django Model Field-related Properties and Methods
 
