@@ -29,7 +29,7 @@ class Base(models.Model):
     archived = models.BooleanField(default=False,
         help_text=u'Note: archived takes precedence over being published')
     # When `published` is false, it is globally not accessible.
-    published = models.BooleanField(default=False)
+    published = models.BooleanField(default=True)
 
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
